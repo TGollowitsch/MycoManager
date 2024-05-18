@@ -1,0 +1,120 @@
+﻿@using System.Text.Json
+@model IEnumerable<MycoManager.Models.EdgeSensor>
+
+@{
+    ViewData["Title"] = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1>Index</h1>
+
+<p>
+    <a asp-action="Create">Create New</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.Name)
+            </th>
+            <th>
+                Status
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Uri)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SetTemperature)
+            </th>
+            <th>
+                Temperature
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SetHumidity)
+            </th>
+            <th>
+                Humidity
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.SetCO2PPM)
+            </th>
+            <th>
+                CO2 ppm
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+            var statusStr = "";
+            double temp = -1;
+            double humidity = -1;
+            int co2 = -1;
+
+            using var httpClient = new HttpClient();
+            using var response = await httpClient.GetAsync(item.Uri);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+
+                using var jsonDoc = JsonDocument.Parse(json);
+
+                jsonDoc.RootElement.TryGetProperty("Temperature", out var jsonTemp);
+                jsonDoc.RootElement.TryGetProperty("Humidity", out var jsonHumidity);
+                jsonDoc.RootElement.TryGetProperty("CO2", out var jsonCO2);
+
+                temp = double.Parse(jsonTemp.ToString());
+                humidity = double.Parse(jsonHumidity.ToString());
+                co2 = int.Parse(jsonCO2.ToString());
+
+                if (temp < item.SetTemperature)
+                    statusStr += "Heating, ";
+                else if (temp > item.SetTemperature)
+                    statusStr += "Cooling, ";
+                if (humidity < item.SetHumidity)
+                    statusStr += "Fogger On, ";
+                if (co2 > item.SetCO2PPM)
+                    statusStr += "Air Cycling, ";
+
+                statusStr.Trim();
+                statusStr.Remove(statusStr.Length - 1);
+            }
+
+            <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Name)
+            </td>
+            <td>
+                @statusStr
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Uri)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.SetTemperature)
+            </td>
+            <td>
+                @temp.ToString("0.00")
+            </td>
+            <td>
+                @string.Format("{0:P0}", item.SetHumidity)
+            </td>
+            <td>
+                @humidity.ToString("P0")
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.SetCO2PPM)
+            </td>
+            <td>
+                @(co2.ToString() + " ppm")
+            </td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@item.ID">Edit</a> |
+                <a asp-action="Details" asp-route-id="@item.ID">Details</a> |
+                <a asp-action="Delete" asp-route-id="@item.ID">Delete</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
